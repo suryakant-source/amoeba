@@ -130,7 +130,8 @@ module Amoeba
       amoeba.null_fields.each do |field_key, options|
         next if options[:if] && !@old_object.send(options[:if])
 
-        @new_object[field_key] = nil
+        # a NOT NULL column cannot hold nil, so use its default when it has one
+        @new_object[field_key] = @object_klass.columns_hash[field_key.to_s]&.then { |c| c.null ? nil : c.default }
       end
     end
 
@@ -158,6 +159,8 @@ module Amoeba
     def process_regexes
       # regex any fields that need changing
       amoeba.regexes.each do |field, action|
+        next if @new_object[field].nil?
+
         @new_object[field].gsub!(action[:replace], action[:with])
       end
     end
